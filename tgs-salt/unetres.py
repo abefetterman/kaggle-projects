@@ -7,8 +7,6 @@ from torchvision.models.resnet import (
     resnet50,
 )
 
-from nl import NONLocalBlock2D
-
 class ConvBn2d(nn.Module):
     def __init__(self, in_planes, out_planes, kernel_size=3, padding=1):
         super(ConvBn2d, self).__init__()
@@ -77,20 +75,6 @@ class Decoder(nn.Module):
 
         return self.se(x)
 
-class NonLocalBlock(nn.Module):
-    def __init__(self, channels, upsample=True):
-        super().__init__()
-        self.nl = NONLocalBlock2D(channels)
-        self.upsample = upsample
-    def forward(self, x, e=None):
-        if self.upsample:
-            x = F.interpolate(x, scale_factor=2, mode='bilinear', align_corners=True)
-        if e is not None:
-            x = torch.cat([x, e], 1)
-
-        x = self.nl(x)
-        return x
-
 class UnetModel(nn.Module):
     def __init__(self, decoder_channels=128):
         super().__init__()
@@ -146,26 +130,26 @@ class UnetModel(nn.Module):
         std =[0.229, 0.224, 0.225]
         batch_size = x.shape[0]
         in_px = x.shape[-1]
+        
+        # add depth factor into two colors to help learning
         depth = torch.linspace(0,1,in_px).repeat([batch_size,1,in_px,1]).to(x.device)
         x = torch.cat([
             (x[:,2:]-mean[2])/std[2],
             (depth-mean[1])/std[1],
             (depth*x[:,0:1]-mean[0])/std[0],
-            # (x[:,1:2]-mean[1])/std[1],
-            # (x[:,0:1]-mean[0])/std[0],
         ], 1)
+        
+        # Unet
 
         x = self.conv1(x)
         e2 = self.se2(self.encoder2(x))
         e3 = self.se3(self.encoder3(e2))
         e4 = self.se4(self.encoder4(e3))
         e5 = self.se5(self.encoder5(e4))
-        # e2 = self.encoder2(x)
-        # e3 = self.encoder3(e2)
-        # e4 = self.encoder4(e3)
-        # e5 = self.encoder5(e4)
 
         f = self.center(e5)
+        
+        # ipool will do prediction in whether image is empty (has no salt)
         ipool = self.avgpool(e5).view(batch_size,-1)
         ipool = self.fc(ipool)
 
@@ -175,6 +159,7 @@ class UnetModel(nn.Module):
         d2 = self.decoder2(d3, e2)
         d1 = self.decoder1(d2)
 
+        # hypercolumns
         f = torch.cat([
             d1,
             F.interpolate(d2,scale_factor=2, mode='bilinear', align_corners=False),
@@ -184,6 +169,7 @@ class UnetModel(nn.Module):
             F.interpolate(ipool.view(batch_size,-1,1,1), scale_factor=in_px, mode='bilinear', align_corners=False)
         ], 1)
 
+        # surface scaled deep layers for deep supervised learning
         deep_layers = torch.cat([
             d1[:,:1],
             F.interpolate(d2[:,:1],scale_factor=2, mode='bilinear', align_corners=False),

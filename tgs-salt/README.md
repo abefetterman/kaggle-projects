@@ -6,10 +6,10 @@ Segment 2D earth ultrasound data to identify salt deposits.
 
 ## Model and Training
 
-The model used is a SE-UNet with residual blocks. See `unetres.py` for 
+The model used is a SE-UNet with residual blocks. See [unetres.py](./unetres.py) for 
 implementation details.
 
-Data augmentation used: 
+Data augmentation used from [albumentations](https://github.com/albu/albumentations): 
 RandomSizedCrop, HorizontalFlip, GridDistortion, RandomContrast, 
 RandomBrightness, RandomGamma
 
@@ -20,6 +20,9 @@ Supervised training was done in 3 phases:
 
 Semi-supervised training was tried as well:
 * Variational Adversarial Training plus Entropy Minimization
+
+Additional tricks include using middle data to predict whether the image has no salt at all,
+use of hypercolumns and deep supervised training.
 
 ## References
 
@@ -34,10 +37,6 @@ M Berman, AR Triki, MB Blaschko.
 _Squeeze-and-Excitation Networks._
 J Hu, L Shen, S Albanie, et. al.
 [arXiv:1709.01507](https://arxiv.org/abs/1709.01507) (2017)
-
-_Non-local Neural networks._
-X Wang, R Girshick, A Gupta, K He
-[arXiv:1711.07971](https://arxiv.org/abs/1711.07971)
 
 _Virtual Adversarial Training: A Regularization Method for Supervised and Semi-Supervised Learning._
 T Miyato, S Maeda, M Koyama, S Ishii. 
