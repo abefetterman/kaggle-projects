@@ -2,7 +2,10 @@
 
 [Link to competition](https://www.kaggle.com/c/trackml-particle-identification)
 
-Cluster ~100k 3D points into ~10k particle tracks.
+Cluster ~100k 3D points into ~10k particle tracks. The tracks are roughly circular 
+in `x-y` and straight in `r-z` but difficult tracks contain soft collisions. 
+The tracks roughly originate near center but about 10% originate outside the 
+innermost detector. 10% of points are noise.
 
 ## Model and Training
 
@@ -20,6 +23,7 @@ Here are the steps used:
   * Go through inner pairs and add to bins in `theta-phi` space
   * Go through outer pairs and find collisions where `theta-phi` matches
   * Score each pair match with D = (dtheta)^2 + (dphi)^2, with adjustment for distance from origin `rho`
+  * Eliminate any triplet where neither pair belongs to another triplet
 * Use mutual distance of pairs D as a distance for DBSCAN, O(n_pairs), with params `min_count` and `eps`:
   * Choose starting pair p
   * Find neighbors with D < `eps`
@@ -28,7 +32,7 @@ Here are the steps used:
     * If the point is unlabeled or labeled as noise, label it with the cluster
     * Count neighbors of this neighbor with D < `eps`
     * If count(neighbors) of neighbor >= `min_count`, add neighbors to queue for labeling
-* Label points based on pairs with minimum group size `group_size`:
+* Label points based on pairs with minimum group size `group_size`, O(n_pairs):
   * Label each point by the most common non-noise label of its pairs
   * Eliminate all labels with less than `group_size` points
   * Repeat labeling each point by the most common non-noise label until stable
